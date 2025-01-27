@@ -1,0 +1,12 @@
+{
+    "name": "socket-chat-example",
+    "version": "0.0.1",
+    "description": "my first socket.io app",
+    "type": "module",
+    "dependencies": {
+        "bcrypt": "^5.1.1",
+        "mongodb": "^6.12.0",
+        "mongoose": "^8.9.5",
+        "socket.io": "^4.8.1"
+    }
+}
