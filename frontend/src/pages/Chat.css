@@ -1,0 +1,238 @@
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f7fb;
+  color: #2c3e50;
+}
+
+/* App Layout */
+.irc-app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 280px;
+  background-color: #34495e;
+  color: white;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  border-right: 2px solid #1abc9c;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar h2 {
+  font-size: 1.6rem;
+  margin-bottom: 20px;
+  color: #ecf0f1;
+  font-weight: 600;
+}
+
+.create-channel-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #1abc9c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+}
+
+.create-channel-btn:hover {
+  background-color: #16a085;
+}
+
+.channel-list {
+  list-style-type: none;
+  padding: 0;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.channel-list li {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.channel-list li:hover {
+  background-color: #16a085;
+}
+
+.channel-list li.active {
+  background-color: #3498db;
+  color: white;
+}
+
+/* Main Content */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #ecf0f1;
+}
+
+.header {
+  background-color: #ffffff;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #bdc3c7;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+}
+
+.set-nickname-btn {
+  margin-left: 12px;
+  padding: 8px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.set-nickname-btn:hover {
+  background-color: #2980b9;
+}
+
+/* Messages Area */
+.message-area {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.message {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 1rem;
+  color: #2c3e50;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.message:hover {
+  background-color: #ecf0f1;
+  transform: translateX(5px);
+}
+
+.message .sender {
+  font-weight: bold;
+  color: #3498db;
+}
+
+.system-message {
+  font-style: italic;
+  color: #95a5a6;
+  font-size: 0.9rem;
+}
+
+/* Message Input */
+.message-form {
+  display: flex;
+  padding: 20px;
+  background-color: #ffffff;
+  border-top: 2px solid #bdc3c7;
+  border-radius: 0 0 8px 8px;
+}
+
+.message-form input {
+  flex-grow: 1;
+  padding: 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.message-form input:focus {
+  border-color: #3498db;
+}
+
+.message-form button {
+  padding: 12px 24px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: 12px;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.message-form button:hover {
+  background-color: #2980b9;
+}
+
+/* Error Message */
+.error {
+  color: red;
+  font-size: 0.9rem;
+  margin-top: 10px;
+  padding: 12px;
+  background-color: #f8d7da;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+  .irc-app {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: 100vh;
+    padding: 10px;
+    border-right: none;
+    border-bottom: 2px solid #1abc9c;
+  }
+
+  .main-content {
+    padding: 10px;
+  }
+
+  .message-form {
+    padding: 12px;
+  }
+
+  .create-channel-btn {
+    width: 100%;
+    padding: 10px;
+    margin-top: 15px;
+  }
+}
