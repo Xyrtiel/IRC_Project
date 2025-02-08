@@ -10,12 +10,14 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() dto: RegisterDto): Promise<User> {
-    console.log('📥 Requête reçue dans AuthController'); // Debugging
+    console.log('📥 Requête reçue dans AuthController (register)', dto);  // Debugging
     return this.authService.registerUser(dto);
   }
 
-  @Post('login') // 🔥 Vérifie que cette route existe !
+  @Post('login')
   async login(@Body() dto: LoginDto) {
+    console.log('📥 Requête reçue dans AuthController (login)', dto);  // Debugging
     return this.authService.loginUser(dto);
   }
 }
+

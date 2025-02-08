@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';  // Importer useNavigate pour la redirection
 // @ts-ignore
 import catPicture from '../assets/images/cat-picture.jpg';
-import { Link } from 'react-router-dom';
 import { registerUser, loginUser } from '../api/api';
 
 // Interface pour typer la réponse de la connexion
@@ -14,13 +14,14 @@ const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'connexion' | 'inscription'>('connexion');
   const [user, setUser] = useState({ pseudo: '', email: '', password: '' });
   const [message, setMessage] = useState<string>('');
+  const navigate = useNavigate(); // Hook pour la navigation
 
-  // 🔥 Fonction pour gérer les changements dans les inputs
+  // Fonction pour gérer les changements dans les inputs
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUser({ ...user, [e.target.name]: e.target.value });
   };
 
-  // 🔥 Fonction pour gérer l'inscription
+  // Fonction pour gérer l'inscription
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
@@ -32,7 +33,7 @@ const HomePage: React.FC = () => {
     }
   };
 
-  // 🔥 Fonction pour gérer la connexion
+  // Fonction pour gérer la connexion
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
@@ -40,7 +41,7 @@ const HomePage: React.FC = () => {
       const data = response as LoginResponse;
       localStorage.setItem('token', data.token);
       setMessage('Connexion réussie ! ✅');
-      window.location.href = '/chat'; // Ajout de la redirection
+      navigate('/chat'); // Utilisation de navigate pour la redirection vers /chat
     } catch (error) {
       setMessage('Erreur lors de la connexion ❌');
     }

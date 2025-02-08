@@ -1,9 +1,12 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/auth';
+// URL de base de ton API
+const API_URL = 'http://localhost:3001'; // Assure-toi que ce port est correct
 
+// Fonction pour récupérer le token d'authentification depuis le localStorage
 const getToken = () => localStorage.getItem('token');
 
+// Configuration de l'instance Axios
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -11,12 +14,11 @@ const api = axios.create({
   },
 });
 
-// Ajouter un interceptor pour inclure le token dans chaque requête HTTP
+// Intercepteur de requêtes pour ajouter le token dans les en-têtes si disponible
 api.interceptors.request.use(
   (config) => {
     const token = getToken();
     if (token) {
-      // S'assurer que headers existe avant d'y ajouter l'autorisation
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -27,20 +29,23 @@ api.interceptors.request.use(
   }
 );
 
+// Interface pour les données d'enregistrement de l'utilisateur
 export interface RegisterUserData {
   pseudo: string;
   email: string;
   password: string;
 }
 
+// Interface pour les données de connexion de l'utilisateur
 export interface LoginUserData {
   email: string;
   password: string;
 }
 
+// Fonction pour enregistrer un utilisateur
 export const registerUser = async (userData: RegisterUserData) => {
   try {
-    const response = await api.post('/register', userData);
+    const response = await api.post('/auth/register', userData); // Vérifie que la route est correcte côté serveur
     return response.data;
   } catch (error: any) {
     console.error('Error registering user:', error.response?.data || error.message);
@@ -48,12 +53,11 @@ export const registerUser = async (userData: RegisterUserData) => {
   }
 };
 
+// Fonction pour connecter un utilisateur
 export const loginUser = async (userData: LoginUserData) => {
   try {
-    const response = await api.post('/login', userData);
-    // Effectuer une assertion de type sur response.data afin d'accéder à la propriété token
+    const response = await api.post('/auth/login', userData); // Vérifie que la route est correcte côté serveur
     const data = response.data as { token: string };
-    // Sauvegarder le token dans le localStorage après la connexion réussie
     localStorage.setItem('token', data.token);
     return data;
   } catch (error: any) {
@@ -62,9 +66,10 @@ export const loginUser = async (userData: LoginUserData) => {
   }
 };
 
+// Fonction pour récupérer le profil de l'utilisateur
 export const getUserProfile = async () => {
   try {
-    const response = await api.get('/profile');
+    const response = await api.get('/auth/profile'); // Vérifie que la route est correcte côté serveur
     return response.data;
   } catch (error: any) {
     console.error('Error fetching user profile:', error.response?.data || error.message);
@@ -72,4 +77,5 @@ export const getUserProfile = async () => {
   }
 };
 
+// Export de l'instance axios pour un usage global
 export default api;
