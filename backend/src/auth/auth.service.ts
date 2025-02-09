@@ -19,14 +19,19 @@ export class AuthService {
       throw new BadRequestException('Le mot de passe ne peut pas être vide');
     }
 
+    // Hashage du mot de passe avant de l'enregistrer
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(dto.password, salt);
+
     const user = new this.userModel({
       pseudo: dto.pseudo,
       email: dto.email,
-      password: dto.password, // Hashage automatique par le pré-save hook
+      password: hashedPassword, // <-- Stocke le mot de passe haché
     });
 
     return user.save();
   }
+
 
   async loginUser(dto: LoginDto): Promise<{ access_token: string }> {
     const user = await this.userModel.findOne({ email: dto.email }).exec();

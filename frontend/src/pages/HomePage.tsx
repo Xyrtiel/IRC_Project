@@ -1,49 +1,89 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';  // Importer useNavigate pour la redirection
+import { Link, useNavigate } from 'react-router-dom';
 // @ts-ignore
 import catPicture from '../assets/images/cat-picture.jpg';
 import { registerUser, loginUser } from '../api/api';
 
-// Interface pour typer la réponse de la connexion
-// On adapte l'interface à la réponse réelle, qui contient "token" et non "access_token"
+// L'API renvoie un objet avec la propriété "access_token"
 interface LoginResponse {
-  token: string;
+  access_token: string;
 }
+
+// Fonction utilitaire pour décoder un JWT en utilisant atob
+const decodeToken = (token: string): any => {
+  try {
+    // Vérification si le token est défini et non vide
+    if (!token || token.split('.').length !== 3) {
+      throw new Error("Token mal formé");
+    }
+
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch (error) {
+    console.error("Erreur lors du décodage du token:", error);
+    return null;
+  }
+};
 
 const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'connexion' | 'inscription'>('connexion');
   const [user, setUser] = useState({ pseudo: '', email: '', password: '' });
   const [message, setMessage] = useState<string>('');
-  const navigate = useNavigate(); // Hook pour la navigation
+  const navigate = useNavigate();
 
-  // Fonction pour gérer les changements dans les inputs
+  // Gestion des changements dans les champs du formulaire
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUser({ ...user, [e.target.name]: e.target.value });
   };
 
-  // Fonction pour gérer l'inscription
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const response = await registerUser(user);
       setMessage('Inscription réussie ! ✅');
       console.log('Inscription réussie:', response);
-    } catch (error) {
-      setMessage('Erreur lors de l’inscription ❌');
+      // Réinitialisation des champs après inscription
+      setUser({ pseudo: '', email: '', password: '' });
+      setActiveTab('connexion');
+    } catch (error: any) {
+      console.error('Erreur lors de l\'inscription:', error);
+      setMessage(error?.response?.data?.message || "Erreur lors de l'inscription ❌");
     }
   };
 
-  // Fonction pour gérer la connexion
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const response = await loginUser({ email: user.email, password: user.password });
-      const data = response as LoginResponse;
-      localStorage.setItem('token', data.token);
+      console.log("Réponse de loginUser:", response);
+      
+      // Utilisation de la bonne structure de données (LoginResponse)
+      const data = response as unknown as LoginResponse;
+      
+      // Vérifier si le access_token est bien dans la réponse
+      if (!data.access_token) {
+        throw new Error("Le access_token est manquant dans la réponse");
+      }
+
+      const token = data.access_token;
+      localStorage.setItem('token', token);
+
+      // Décoder le token
+      const decoded = decodeToken(token);
+      if (!decoded) {
+        throw new Error("Le token ne peut pas être décodé.");
+      }
+
+      localStorage.setItem('nickname', decoded.pseudo || decoded.nickname || '');
+      localStorage.setItem('userId', decoded.userId || decoded.id || '');
+
       setMessage('Connexion réussie ! ✅');
-      navigate('/chat'); // Utilisation de navigate pour la redirection vers /chat
-    } catch (error) {
-      setMessage('Erreur lors de la connexion ❌');
+      console.log('Utilisateur connecté:', decoded.pseudo || decoded.nickname);
+      setUser({ pseudo: '', email: '', password: '' });
+      navigate('/chat');
+    } catch (error: any) {
+      console.error('Erreur lors de la connexion:', error);
+      setMessage(error?.response?.data?.message || "Erreur lors de la connexion ❌");
     }
   };
 
@@ -66,20 +106,26 @@ const HomePage: React.FC = () => {
         <div className="tab-container">
           <button
             className={`tab ${activeTab === 'connexion' ? 'active' : ''}`}
-            onClick={() => setActiveTab('connexion')}
+            onClick={() => {
+              setActiveTab('connexion');
+              setMessage('');
+            }}
           >
             Connexion
           </button>
           <button
             className={`tab ${activeTab === 'inscription' ? 'active' : ''}`}
-            onClick={() => setActiveTab('inscription')}
+            onClick={() => {
+              setActiveTab('inscription');
+              setMessage('');
+            }}
           >
             Inscription
           </button>
         </div>
 
         <form className="form" onSubmit={activeTab === 'connexion' ? handleLogin : handleRegister}>
-          {activeTab === 'connexion' && (
+          {activeTab === 'connexion' ? (
             <>
               <label htmlFor="email">Email</label>
               <input
@@ -88,6 +134,7 @@ const HomePage: React.FC = () => {
                 name="email"
                 placeholder="Entrez votre email"
                 onChange={handleChange}
+                value={user.email}
               />
               <label htmlFor="password">Mot de passe</label>
               <input
@@ -96,14 +143,13 @@ const HomePage: React.FC = () => {
                 name="password"
                 placeholder="Entrez votre mot de passe"
                 onChange={handleChange}
+                value={user.password}
               />
               <button className="submit-button" type="submit">
                 Se connecter
               </button>
             </>
-          )}
-
-          {activeTab === 'inscription' && (
+          ) : (
             <>
               <label htmlFor="pseudo">Pseudo</label>
               <input
@@ -112,6 +158,7 @@ const HomePage: React.FC = () => {
                 name="pseudo"
                 placeholder="Entrez votre pseudo"
                 onChange={handleChange}
+                value={user.pseudo}
               />
               <label htmlFor="email">Email</label>
               <input
@@ -120,6 +167,7 @@ const HomePage: React.FC = () => {
                 name="email"
                 placeholder="Entrez votre email"
                 onChange={handleChange}
+                value={user.email}
               />
               <label htmlFor="password">Mot de passe</label>
               <input
@@ -128,6 +176,7 @@ const HomePage: React.FC = () => {
                 name="password"
                 placeholder="Entrez votre mot de passe"
                 onChange={handleChange}
+                value={user.password}
               />
               <button className="submit-button" type="submit">
                 S'inscrire
@@ -135,7 +184,7 @@ const HomePage: React.FC = () => {
             </>
           )}
         </form>
-        {message && <p>{message}</p>}
+        {message && <p className="message">{message}</p>}
       </div>
     </>
   );
