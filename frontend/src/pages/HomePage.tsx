@@ -74,7 +74,8 @@ const HomePage: React.FC = () => {
         throw new Error("Le token ne peut pas être décodé.");
       }
 
-      localStorage.setItem('nickname', decoded.pseudo || decoded.nickname || '');
+      // Ici, on assume que le pseudo est présent dans le token décodé sous "pseudo" ou "nickname"
+      localStorage.setItem('nickname', decoded.pseudo || decoded.nickname || 'Anonymous');
       localStorage.setItem('userId', decoded.userId || decoded.id || '');
 
       setMessage('Connexion réussie ! ✅');

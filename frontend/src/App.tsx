@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { CommandHelpButton, CommandHelpOverlay } from './components/CommandHelpOverlay';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import HomePage from './pages/HomePage';
 import './App.css';
 
 interface Message {
@@ -17,112 +15,75 @@ interface ServerResponse {
   message: string;
 }
 
-// Mise à jour de l'interface AuthResponse pour refléter le retour de l'API (utilisation de "pseudo")
-interface AuthResponse {
-  token: string;
-  user: {
-    id: string;
-    pseudo: string;
-  };
-}
+// Création du socket avec quelques options de reconnexion
+const socket: Socket = io('http://localhost:3001', {
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
 
-// Création du socket avec authentification
-const createSocket = (token: string): Socket => {
-  return io('http://localhost:3000', {
-    transports: ['websocket'],
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-    auth: { token }
-  });
-};
-
-function IRCChat() {
-  const navigate = useNavigate();
-  const [socket, setSocket] = useState<Socket | null>(null);
+function App() {
   const [channels, setChannels] = useState<string[]>([]);
   const [currentChannel, setCurrentChannel] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<string[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  // On récupère le pseudo stocké sous la clé "nickname" dans le localStorage
-  const [nickname, setNickname] = useState(localStorage.getItem('nickname') || '');
+  const [nickname, setNickname] = useState('');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/');
-      return;
-    }
-    
-    const newSocket = createSocket(token);
-    setSocket(newSocket);
-
-    newSocket.on('connect', () => {
-      console.log('Socket connected with ID:', newSocket.id);
+    // Connexion et gestion des erreurs / reconnexions
+    socket.on('connect', () => {
+      console.log('Connected to server with ID:', socket.id);
       setSocketConnected(true);
       setConnectionError(null);
     });
 
-    newSocket.on('connect_error', (error: any) => {
-      console.error('Socket connection error:', error);
+    socket.on('connect_error', (error: any) => {
+      console.error('Connection error:', error);
       setSocketConnected(false);
-      setConnectionError(`Erreur de connexion: ${error.message || error}`);
+      setConnectionError(`Connection error: ${error.message || error}`);
     });
 
-    newSocket.on('reconnect_attempt', (attempt) => {
-      console.log(`Tentative de reconnexion: ${attempt}`);
+    socket.on('reconnect_attempt', (attempt) => {
+      console.log(`Reconnection attempt: ${attempt}`);
     });
 
-    newSocket.on('reconnect', (attempt) => {
-      console.log(`Reconnexion réussie après ${attempt} tentative(s)`);
+    socket.on('reconnect', (attempt) => {
+      console.log(`Reconnected after ${attempt} attempt(s)`);
       setSocketConnected(true);
       setConnectionError(null);
     });
 
-    newSocket.on('reconnect_error', (error: any) => {
-      console.error('Erreur de reconnexion:', error);
-      setConnectionError(`Erreur de reconnexion: ${error.message || error}`);
+    socket.on('reconnect_error', (error: any) => {
+      console.error('Reconnection error:', error);
+      setConnectionError(`Reconnection error: ${error.message || error}`);
     });
 
-    newSocket.on('channelList', (channelList: string[]) => {
-      console.log('Received channel list:', channelList);
-      setChannels(channelList);
-    });
+    // Gestion des événements classiques
+    socket.on('channelList', (channelList: string[]) => setChannels(channelList));
+    socket.on('userList', (userList: string[]) => setUsers(userList));
+    socket.on('message', (msg: Message) => setMessages(prev => [...prev, msg]));
 
-    newSocket.on('userList', (userList: string[]) => {
-      console.log('Received user list:', userList);
-      setUsers(userList);
-    });
+    // Permet de fermer l'overlay d'aide en cliquant en dehors
+    const handleClickOutside = () => setIsHelpOpen(false);
+    document.addEventListener('click', handleClickOutside);
 
-    newSocket.on('message', (msg: Message) => {
-      console.log('Received message:', msg);
-      setMessages(prev => [...prev, msg]);
-    });
-
-    newSocket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-      setSocketConnected(false);
-      if (reason === 'io server disconnect') {
-        navigate('/');
-      }
-    });
-
-    // Nettoyage lors du démontage du composant
     return () => {
-      newSocket.close();
+      socket.off('connect');
+      socket.off('connect_error');
+      socket.off('reconnect_attempt');
+      socket.off('reconnect');
+      socket.off('reconnect_error');
+      socket.off('channelList');
+      socket.off('userList');
+      socket.off('message');
+      document.removeEventListener('click', handleClickOutside);
     };
-  }, [navigate]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('nickname');
-    socket?.close();
-    navigate('/');
-  };
+  }, []);
 
   const toggleHelp = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -131,137 +92,148 @@ function IRCChat() {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!socket || !socket.connected) {
-      alert('Non connecté au serveur');
-      return;
-    }
-    if (inputMessage.trim()) {
-      const [command, ...args] = inputMessage.trim().split(' ');
-      
-      switch (command.toLowerCase()) {
-        case '/nick':
-          if (args.length > 0) {
-            handleSetNickname(args[0]);
+    if (!inputMessage.trim()) return;
+    const [command, ...args] = inputMessage.trim().split(' ');
+
+    switch (command.toLowerCase()) {
+      case '/nick':
+        if (args.length > 0) {
+          handleSetNickname(args[0]);
+        } else {
+          alert('Usage: /nick <nickname>');
+        }
+        break;
+
+      case '/list':
+        socket.emit('listChannels', args[0] || '', (response: ServerResponse) => {
+          if (response.success) {
+            alert(`Available channels: ${response.message}`);
           } else {
-            alert('Usage: /nick <pseudo>');
+            alert(`Error: ${response.message}`);
           }
-          break;
-        case '/list':
-          socket.emit('listChannels', args[0] || '', (response: ServerResponse) => {
+        });
+        break;
+
+      case '/create':
+        handleCreateChannel();
+        break;
+
+      case '/delete':
+        if (args.length > 0) {
+          socket.emit('deleteChannel', args[0], (response: ServerResponse) => {
             if (response.success) {
-              alert(`Canaux disponibles: ${response.message}`);
+              alert(`Channel ${args[0]} deleted successfully`);
             } else {
-              alert(`Erreur: ${response.message}`);
+              alert(`Failed to delete channel: ${response.message}`);
             }
           });
-          break;
-        case '/join':
-          if (args.length > 0) {
-            handleJoinChannel(args[0]);
-          } else {
-            alert('Usage: /join <canal>');
-          }
-          break;
-        case '/quit':
-          if (currentChannel) {
-            handleQuitChannel(currentChannel);
-          } else {
-            alert('Vous n\'êtes dans aucun canal');
-          }
-          break;
-        case '/msg':
-          if (args.length >= 2) {
-            const [recipient, ...messageWords] = args;
-            handlePrivateMessage(recipient, messageWords.join(' '));
-          } else {
-            alert('Usage: /msg <pseudo> <message>');
-          }
-          break;
-        default:
-          if (currentChannel) {
-            socket.emit('sendMessage', { 
-              channel: currentChannel, 
-              message: inputMessage 
-            }, (response: ServerResponse) => {
-              if (!response.success) {
-                alert(`Erreur d'envoi: ${response.message}`);
-              }
-            });
-          } else {
-            alert('Veuillez d\'abord rejoindre un canal');
-          }
-      }
-      setInputMessage('');
-      setIsHelpOpen(false);
+        } else {
+          alert('Usage: /delete <channel>');
+        }
+        break;
+
+      case '/join':
+        if (args.length > 0) {
+          handleJoinChannel(args[0]);
+        } else {
+          alert('Usage: /join <channel>');
+        }
+        break;
+
+      case '/quit':
+        if (currentChannel) {
+          socket.emit('quitChannel', currentChannel, (response: ServerResponse) => {
+            if (response.success) {
+              setCurrentChannel(null);
+              setMessages([]);
+              alert(`Left channel: ${currentChannel}`);
+            } else {
+              alert(`Failed to quit channel: ${response.message}`);
+            }
+          });
+        } else {
+          alert('You are not in any channel');
+        }
+        break;
+
+      case '/users':
+        if (currentChannel) {
+          socket.emit('listUsers', currentChannel, (response: ServerResponse) => {
+            if (response.success) {
+              alert(`Users in ${currentChannel}: ${response.message}`);
+            } else {
+              alert(`Failed to list users: ${response.message}`);
+            }
+          });
+        } else {
+          alert('You are not in any channel');
+        }
+        break;
+
+      case '/msg':
+        if (args.length >= 2) {
+          const [recipient, ...messageWords] = args;
+          const privateMessage = messageWords.join(' ');
+          socket.emit('privateMessage', { recipient, message: privateMessage }, (response: ServerResponse) => {
+            if (response.success) {
+              alert(`Private message sent to ${recipient}`);
+            } else {
+              alert(`Failed to send private message: ${response.message}`);
+            }
+          });
+        } else {
+          alert('Usage: /msg <nickname> <message>');
+        }
+        break;
+
+      default:
+        if (currentChannel) {
+          socket.emit('sendMessage', { channel: currentChannel, message: inputMessage }, (response: ServerResponse) => {
+            if (!response.success) {
+              alert(`Error sending message: ${response.message}`);
+            }
+          });
+        } else {
+          alert('Please join a channel first');
+        }
     }
+    setInputMessage('');
+    setIsHelpOpen(false);
   };
 
   const handleCreateChannel = () => {
-    if (!socket || !socket.connected) return;
-    const channelName = prompt('Nom du canal:');
+    const channelName = prompt('Enter channel name:');
     if (channelName) {
       socket.emit('createChannel', channelName, (response: ServerResponse) => {
         if (response.success) {
-          alert(`Canal ${channelName} créé avec succès!`);
-          setChannels(prevChannels => [...prevChannels, channelName]);
+          alert(`Channel ${channelName} created successfully!`);
+          setChannels(prev => [...prev, channelName]);
         } else {
-          alert(`Échec de création du canal: ${response.message}`);
+          alert(`Failed to create channel: ${response.message}`);
         }
       });
     }
   };
 
   const handleJoinChannel = (channel: string) => {
-    if (!socket || !socket.connected) return;
     socket.emit('joinChannel', channel, (response: ServerResponse) => {
       if (response.success) {
         setCurrentChannel(channel);
         setMessages([]);
+        alert(`Joined channel: ${channel}`);
       } else {
-        alert(`Impossible de rejoindre le canal: ${response.message}`);
-      }
-    });
-  };
-
-  const handleQuitChannel = (channel: string) => {
-    if (!socket || !socket.connected) return;
-    socket.emit('quitChannel', channel, (response: ServerResponse) => {
-      if (response.success) {
-        setCurrentChannel(null);
-        setMessages([]);
-        alert(`Canal quitté: ${channel}`);
-      } else {
-        alert(`Impossible de quitter le canal: ${response.message}`);
-      }
-    });
-  };
-
-  const handlePrivateMessage = (recipient: string, message: string) => {
-    if (!socket || !socket.connected) return;
-    socket.emit('privateMessage', { recipient, message }, (response: ServerResponse) => {
-      if (response.success) {
-        alert(`Message privé envoyé à ${recipient}`);
-      } else {
-        alert(`Échec d'envoi du message privé: ${response.message}`);
+        alert(`Failed to join channel: ${response.message}`);
       }
     });
   };
 
   const handleSetNickname = (newNickname: string) => {
-    if (!socket || !socket.connected) {
-      alert('Non connecté au serveur');
-      return;
-    }
     socket.emit('setNickname', newNickname, (response: ServerResponse) => {
       if (response.success) {
         setNickname(newNickname);
-        localStorage.setItem('nickname', newNickname);
-        alert(`Pseudo défini: ${newNickname}`);
+        alert(`Nickname set to: ${newNickname}`);
       } else {
-        alert(`Échec de définition du pseudo: ${response.message}`);
-        if (localStorage.getItem('nickname') === newNickname) {
-          localStorage.removeItem('nickname');
-        }
+        alert(`Failed to set nickname: ${response.message}`);
       }
     });
   };
@@ -271,24 +243,20 @@ function IRCChat() {
       {connectionError && (
         <div className="connection-error">
           <span>{connectionError}</span>
-          <button onClick={() => socket?.connect()} className="retry-button">
-            Reconnecter
+          <button onClick={() => socket.connect()} className="retry-button">
+            Reconnect
           </button>
         </div>
       )}
       
       <div className="sidebar">
-        <h2>Canaux</h2>
+        <h2>Channels</h2>
         <button className="create-channel-btn" onClick={handleCreateChannel}>
-          Créer un Canal
+          Create Channel
         </button>
         <ul className="channel-list">
           {channels.map(channel => (
-            <li 
-              key={channel}
-              onClick={() => handleJoinChannel(channel)}
-              className={currentChannel === channel ? 'active' : ''}
-            >
+            <li key={channel} onClick={() => handleJoinChannel(channel)}>
               #{channel}
             </li>
           ))}
@@ -298,18 +266,24 @@ function IRCChat() {
       <div className="main-content">
         <div className="header">
           <div className="flex justify-between items-center">
-            <h1>{currentChannel ? `#${currentChannel}` : 'Bienvenue sur IRC'}</h1>
+            <h1>{currentChannel ? `#${currentChannel}` : 'Welcome to IRC'}</h1>
             <div className="connection-status">
               {socketConnected ? (
-                <span className="status-connected">Connecté</span>
+                <span className="status-connected">Connected</span>
               ) : (
-                <span className="status-disconnected">Déconnecté</span>
+                <span className="status-disconnected">Disconnected</span>
               )}
             </div>
             <div className="flex items-center space-x-2">
-              <span>Connecté en tant que: {nickname}</span>
-              <button className="logout-btn" onClick={handleLogout}>
-                Déconnexion
+              <span>Nickname: {nickname || 'Not set'}</span>
+              <button
+                className="set-nickname-btn"
+                onClick={() => {
+                  const newNickname = prompt('Enter your nickname:');
+                  if (newNickname) handleSetNickname(newNickname);
+                }}
+              >
+                Set Nickname
               </button>
             </div>
           </div>
@@ -331,34 +305,25 @@ function IRCChat() {
         </div>
         
         <div className="relative">
-          <form 
-            onSubmit={handleSendMessage}
-            className="message-form relative"
-            onClick={e => e.stopPropagation()}
-          >
-            <input 
+          <form onSubmit={handleSendMessage} className="message-form relative" onClick={(e) => e.stopPropagation()}>
+            <input
               type="text"
               value={inputMessage}
-              onChange={e => setInputMessage(e.target.value)}
-              placeholder="Tapez un message ou une commande..."
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type a message or command..."
               className="w-full pr-16"
-              disabled={!socketConnected}
             />
             <div className="absolute right-0 top-0 flex items-center h-full">
-              <CommandHelpButton 
-                onToggle={e => {
+              <CommandHelpButton
+                onToggle={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   toggleHelp(e);
                 }}
                 isOpen={isHelpOpen}
               />
-              <button 
-                type="submit"
-                className="ml-2 bg-blue-500 text-white px-3 py-1 rounded"
-                disabled={!socketConnected}
-              >
-                Envoyer
+              <button type="submit" className="ml-2 bg-blue-500 text-white px-3 py-1 rounded">
+                Send
               </button>
             </div>
           </form>
@@ -366,17 +331,6 @@ function IRCChat() {
         </div>
       </div>
     </div>
-  );
-}
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/chat" element={localStorage.getItem('token') ? <IRCChat /> : <Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
   );
 }
 
