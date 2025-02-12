@@ -5,7 +5,7 @@ import { Channel } from './channel.schema';
 
 @Schema()
 export class Message extends Document {
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   content: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -17,7 +17,7 @@ export class Message extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Channel' })
   channel: Channel;
 
-  @Prop({ default: Date.now })
+  @Prop({ type: Date, default: Date.now })
   timestamp: Date;
 }
 
